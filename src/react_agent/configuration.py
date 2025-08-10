@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass, field, fields
 from typing import Annotated
 
@@ -37,6 +38,26 @@ class Configuration:
             "description": "The maximum number of search results to return for each search query."
         },
     )
+
+    def __init__(self, **kwargs) -> None:
+        """Initialize Configuration, filtering out unknown parameters."""
+        # Get valid field names from the dataclass
+        valid_fields = {f.name for f in fields(self.__class__) if f.init}
+        
+        # Filter kwargs to only include valid fields
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in valid_fields}
+        
+        # Set defaults for missing fields
+        for field_info in fields(self.__class__):
+            if field_info.init and field_info.name not in filtered_kwargs:
+                if field_info.default != dataclasses.MISSING:
+                    filtered_kwargs[field_info.name] = field_info.default
+                elif field_info.default_factory != dataclasses.MISSING:  # type: ignore[attr-defined]
+                    filtered_kwargs[field_info.name] = field_info.default_factory()  # type: ignore[attr-defined]
+        
+        # Set the attributes
+        for name, value in filtered_kwargs.items():
+            setattr(self, name, value)
 
     @classmethod
     def from_context(cls) -> Configuration:
